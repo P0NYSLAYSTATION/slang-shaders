@@ -250,18 +250,19 @@ static const bool gamma_aware_bilinear = !linearize_input;
 
 //////////////////////  COLOR ENCODING/DECODING FUNCTIONS  /////////////////////
 
+inline float3 encode_srgb(float3 linear) {
+    float3 low = linear * 12.92;
+    float3 high = 1.055 * pow(linear, float3(1.0 / 2.4)) - 0.055;
+    return mix(low, high, step(float3(0.0031308), linear));
+}
+
 inline float4 encode_output(const float4 color)
 {
     if(gamma_encode_output)
     {
-        if(assume_opaque_alpha)
-        {
-            return float4(pow(color.rgb, float3(1.0/get_pass_output_gamma())), 1.0);
-        }
-        else
-        {
-            return float4(pow(color.rgb, float3(1.0/get_pass_output_gamma())), color.a);
-        }
+        float gamma = get_pass_output_gamma();
+        float3 encoded = (gamma == 2.2) ? encode_srgb(color.rgb) : pow(color.rgb, float3(1.0 / gamma));
+        return assume_opaque_alpha ? float4(encoded, 1.0) : float4(encoded, color.a);
     }
     else
     {
